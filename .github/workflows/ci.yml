@@ -1,0 +1,179 @@
+name: CI
+
+# Dispara sempre que um Pull Request for aberto, atualizado ou reaberto
+# com destino à branch main.
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+  workflow_dispatch: # permite rodar manualmente pela aba "Actions", útil para testar
+
+jobs:
+  # ---------------------------------------------------------------------
+  # Job 1: testes de caixa-branca do backend (JUnit, Mockito, MockMvc)
+  # Usa o banco H2 em memória (configurado em api/src/test/resources),
+  # não precisa de MySQL nem da aplicação rodando.
+  # ---------------------------------------------------------------------
+  backend-tests:
+    name: Testes do Backend (API)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+          cache-dependency-path: api/pom.xml
+
+      - name: Rodar os testes do backend
+        working-directory: api
+        run: |
+          chmod +x mvnw
+          ./mvnw test
+
+  # ---------------------------------------------------------------------
+  # Job 2: testes de caixa-branca do frontend (Jest + Testing Library)
+  # Não precisa da aplicação rodando, testa o código isoladamente.
+  # ---------------------------------------------------------------------
+  frontend-tests:
+    name: Testes do Frontend (Client)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Instalar dependências do frontend
+        working-directory: client
+        run: npm install
+
+      - name: Rodar os testes do frontend
+        working-directory: client
+        run: npm test -- --watchAll=false
+
+  # ---------------------------------------------------------------------
+  # Job 3: testes de caixa-preta (E2E e API com Playwright)
+  # Precisa de um banco MySQL de verdade e da aplicação (API + Client)
+  # rodando, porque esses testes simulam o sistema em execução.
+  # Só roda depois que os dois jobs acima passarem.
+  # ---------------------------------------------------------------------
+  e2e-and-api-tests:
+    name: Testes E2E e de API (Playwright)
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: social_media
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+          cache-dependency-path: api/pom.xml
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            tests/package-lock.json
+
+      - name: Instalar dependências do backend
+        working-directory: api
+        run: |
+          chmod +x mvnw
+          ./mvnw -B -DskipTests dependency:go-offline
+
+      - name: Instalar dependências do frontend
+        working-directory: client
+        run: npm install
+
+      - name: Instalar dependências dos testes E2E/API
+        working-directory: tests
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+
+      # Sobe a API em segundo plano, apontando para o MySQL do serviço
+      # acima (não usa o application.properties local do aluno).
+      - name: Iniciar a API
+        working-directory: api
+        env:
+          SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/social_media
+          SPRING_DATASOURCE_USERNAME: root
+          SPRING_DATASOURCE_PASSWORD: root
+        run: |
+          ./mvnw spring-boot:run > ../api.log 2>&1 &
+          for i in {1..60}; do
+            if curl --fail --silent "http://localhost:8080/posts?limit=1&skip=0" > /dev/null; then
+              echo "API no ar!"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API não respondeu a tempo. Log:"
+          cat ../api.log
+          exit 1
+
+      - name: Construir e iniciar o Client
+        working-directory: client
+        env:
+          NEXT_PUBLIC_BASE_URL: http://localhost:8080
+        run: |
+          npm run build
+          npm run start > ../client.log 2>&1 &
+          for i in {1..60}; do
+            if curl --fail --silent http://localhost:3000 > /dev/null; then
+              echo "Client no ar!"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Client não respondeu a tempo. Log:"
+          cat ../client.log
+          exit 1
+
+      - name: Rodar os testes E2E e de API
+        working-directory: tests
+        run: npx playwright test
+
+      - name: Publicar relatório do Playwright (se algum teste falhar)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: tests/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
