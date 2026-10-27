@@ -156,6 +156,9 @@ const config: Config = {
   // The test environment that will be used for testing
   testEnvironment: "jsdom",
 
+  // Carrega os matchers do @testing-library/jest-dom (toBeInTheDocument, etc.)
+  setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
+
   // Options that will be passed to the testEnvironment
   // testEnvironmentOptions: {},
 
