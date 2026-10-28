@@ -64,6 +64,6 @@ test.describe("E2E - Fluxo de cadastro", () => {
     // Continua na tela de cadastro (não deve redirecionar) e mostra o erro
     // retornado pela API (o mesmo texto que o backend envia).
     await expect(page).toHaveURL(/\/signup$/);
-    await expect(page.getByText("E-mail já está em uso")).toBeVisible();
+    await expect(page.getByText("E-mail já cadastrado")).toBeVisible();
   });
 });
