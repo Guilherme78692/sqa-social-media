@@ -20,7 +20,7 @@ test.describe("E2E - Fluxo de cadastro", () => {
     await camposDeSenha.nth(1).fill(SENHA_VALIDA); // Confirmar Senha
 
     // O texto "Criar Conta" também existe no cabeçalho, então restringimos
-    // a busca ao botão de dentro do <form>, para não ser ambíguo.
+    // a busca ao botão de dentro do <form>
     await page
       .locator("form")
       .getByRole("button", { name: "Criar Conta" })
@@ -64,6 +64,6 @@ test.describe("E2E - Fluxo de cadastro", () => {
     // Continua na tela de cadastro (não deve redirecionar) e mostra o erro
     // retornado pela API (o mesmo texto que o backend envia).
     await expect(page).toHaveURL(/\/signup$/);
-    await expect(page.getByText("E-mail já está em uso")).toBeVisible();
+    await expect(page.getByText("E-mail já cadastrado")).toBeVisible();
   });
 });

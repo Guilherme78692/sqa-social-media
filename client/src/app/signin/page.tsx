@@ -56,7 +56,7 @@ export default function SignIn() {
 
     try {
       const response = await authService.signIn({ email, password });
-      login({ id: response.id, email: response.email });
+      login({ id: response.user.id, email: response.user.email });
       router.push("/");
     } catch (err: unknown) {
       if (err instanceof AxiosError) {

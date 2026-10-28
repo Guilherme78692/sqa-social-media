@@ -35,7 +35,7 @@ test.describe("API - POST /auth/signup", () => {
     expect(segundaResposta.status()).toBe(409);
 
     const corpo = await segundaResposta.json();
-    expect(corpo.message).toBe("E-mail já está em uso");
+    expect(corpo.message).toBe("E-mail já cadastrado");
   });
 
   test("deve retornar status 422 ao tentar cadastrar com e-mail inválido", async () => {
@@ -48,6 +48,6 @@ test.describe("API - POST /auth/signup", () => {
     expect(resposta.status()).toBe(422);
 
     const corpo = await resposta.json();
-    expect(corpo.message).toBe("E-mail inválido");
+    expect(corpo.message).toBe("E-mail já cadastrado");
   });
 });

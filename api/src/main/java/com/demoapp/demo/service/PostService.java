@@ -61,6 +61,7 @@ public class PostService {
         post.put("title", postNode.get("title").asText());
         post.put("body", postNode.get("body").asText());
         post.put("liked", likedPostIds.contains(postId));
+        post.put("reactions", extractReactions(postNode));
         
         posts.add(post);
       }
@@ -108,6 +109,7 @@ public class PostService {
         post.put("title", postNode.get("title").asText());
         post.put("body", postNode.get("body").asText());
         post.put("liked", true);
+        post.put("reactions", extractReactions(postNode));
         
         posts.add(post);
       }
@@ -125,6 +127,21 @@ public class PostService {
     }
   }
 
+  private Map<String, Object> extractReactions(JsonNode postNode) {
+  Map<String, Object> reactions = new HashMap<>();
+  JsonNode reactionsNode = postNode.get("reactions");
+
+  int likes = (reactionsNode != null && reactionsNode.has("likes"))
+      ? reactionsNode.get("likes").asInt()
+      : 0;
+  int dislikes = (reactionsNode != null && reactionsNode.has("dislikes"))
+      ? reactionsNode.get("dislikes").asInt()
+      : 0;
+
+  reactions.put("likes", likes);
+  reactions.put("dislikes", dislikes);
+  return reactions;
+}
   public Map<String, Object> toggleLike(Long postId, Long userId) {
     Optional<UserPostReaction> existing = reactionRepository.findByUserIdAndPostId(userId, postId);
     

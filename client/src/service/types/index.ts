@@ -1,11 +1,7 @@
+
 export interface User {
   id: number;
   email: string;
-}
-
-export interface SignUpRequest {
-  email: string;
-  password: string;
 }
 
 export interface SignInRequest {
@@ -14,12 +10,22 @@ export interface SignInRequest {
 }
 
 export interface SignInResponse {
-  id: number;
+  token: string;
+  user: User;
+}
+
+export interface SignUpRequest {
   email: string;
+  password: string;
 }
 
 export interface ResetPasswordRequest {
   email: string;
+}
+
+export interface PostReactions {
+  likes: number;
+  dislikes: number;
 }
 
 export interface Post {
@@ -27,6 +33,7 @@ export interface Post {
   title: string;
   body: string;
   liked: boolean;
+  reactions?: PostReactions;
 }
 
 export interface PostsResponse {
