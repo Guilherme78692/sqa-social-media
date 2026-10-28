@@ -75,7 +75,7 @@ export default function SignUp() {
 
     try {
       const response = await authService.signUp({ email, password });
-      login({ id: response.id, email: response.email });
+      login({ id: response.user.id, email: response.user.email });
       router.push("/");
     } catch (err: unknown) {
       if (err instanceof AxiosError) {
